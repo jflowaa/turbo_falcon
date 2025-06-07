@@ -1,0 +1,24 @@
+<.flash_group flash={@flash} />
+<div class="container bg-background text-foreground dark:bg-background-dark dark:text-foreground-dark">
+  <.job_thread_form
+    job_threads={@job_threads}
+    selected_thread_id={@selected_thread_id}
+    filter={@filter}
+    exclusive={@exclusive}
+  />
+
+  <div id="job-postings">
+    <%= if @job_postings_empty do %>
+      <div class="bg-card dark:bg-card-dark rounded-xl shadow-md p-6 border border-border dark:border-border-dark text-center text-foreground dark:text-foreground-dark">
+        <div class="text-lg font-semibold mb-2">No job postings found</div>
+        <div class="text-sm">Try a different thread or adjust your search terms.</div>
+      </div>
+    <% else %>
+      <div id="job-postings-listing" phx-update="stream">
+        <%= for {dom_id, job_posting} <- @streams.job_postings do %>
+          <.job_posting_card dom_id={dom_id} job_posting={job_posting} />
+        <% end %>
+      </div>
+    <% end %>
+  </div>
+</div>

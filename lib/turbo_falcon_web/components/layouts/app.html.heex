@@ -1,0 +1,26 @@
+<header class="px-4 sm:px-6 lg:px-8 bg-background dark:bg-background-dark text-foreground dark:text-foreground-dark border-b border-border dark:border-border-dark">
+  <div class="flex items-center justify-between py-3">
+    <div class="flex items-center gap-4">
+      <a
+        href="/"
+        class="rounded-full bg-brand/5 dark:bg-brand-dark/10 px-2 font-medium leading-6 text-brand dark:text-brand-dark"
+      >
+        {Application.get_env(:turbo_falcon, :product_name)}
+      </a>
+    </div>
+    <div class="flex items-center gap-4 text-[0.7525rem] font-semibold leading-6 text-foreground dark:text-foreground-dark active:text-foreground/70 dark:active:text-foreground-dark/70">
+      <a
+        href="https://github.com/jflowaa/turbo_falcon"
+        class="rounded-lg bg-accent/10 dark:bg-accent-dark/20 px-2 py-1 text-[0.8125rem] text-accent dark:text-accent-dark hover:bg-accent/20 dark:hover:bg-accent-dark/30"
+      >
+        Source Code <span aria-hidden="true">&rarr;</span>
+      </a>
+    </div>
+  </div>
+</header>
+<main class="px-4 py-20 sm:px-6 lg:px-8 bg-background dark:bg-background-dark text-foreground dark:text-foreground-dark">
+  <div class="mx-auto max-w-2xl">
+    <.flash_group flash={@flash} />
+    {@inner_content}
+  </div>
+</main>
