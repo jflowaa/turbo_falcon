@@ -11,7 +11,17 @@ rm /tmp/turbo_falcon.tar.gz && \
 cd ~/sites/turbo_falcon/ && \
 asdf local elixir 1.18.4 && \
 asdf local erlang 26.2.5.3 && \
-MIX_ENV=prod mix setup && \
+MIX_ENV=prod mix deps.get --only prod && \
+if [ -n "\$TURBO_FALCON_DATABASE_PATH" ]; then \
+	DB_PARENT=\$(dirname "\$TURBO_FALCON_DATABASE_PATH") && \
+	mkdir -p "\$DB_PARENT" && \
+	if [ ! -f "\$TURBO_FALCON_DATABASE_PATH" ]; then \
+		MIX_ENV=prod mix ecto.create || exit 1; \
+	fi; \
+else \
+	MIX_ENV=prod mix ecto.create || exit 1; \
+fi && \
+MIX_ENV=prod mix ecto.migrate && \
 MIX_ENV=prod mix assets.deploy && \
 MIX_ENV=prod mix phx.gen.release && \
 MIX_ENV=prod mix release && \

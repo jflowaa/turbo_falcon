@@ -59,7 +59,7 @@ defmodule TurboFalcon.Gemini.WebApiClient do
     )
   end
 
-  def get_summary_of_job_posting(client, posting, model \\ "gemini-2.0-flash") do
+  def get_summary_of_job_posting(client, posting, model \\ "gemini-2.5-flash") do
     body = %{
       "system_instruction" => %{
         "parts" => [

@@ -1,4 +1,4 @@
-defmodule TurboFalcon.Gemini.JobPostingSummarizingProducer do
+defmodule TurboFalcon.JobPostingSummarizing.Producer do
   use GenStage
   alias TurboFalcon.HackerNews.JobPosting
   require Logger

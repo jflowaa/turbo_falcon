@@ -104,7 +104,7 @@ defmodule TurboFalconWeb.Live.HackerNews.JobPostingCardComponent do
 
     ~H"""
     <div
-      class="prose prose-slate max-w-none text-foreground dark:text-foreground-dark [&_a]:text-accent [&_a]:hover:underline dark:[&_a]:text-white dark:[&_a]:hover:text-accent-dark"
+      class="prose prose-sm prose-slate prose-headings:text-inherit prose-strong:text-inherit prose-blockquote:text-inherit prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 max-w-none text-foreground dark:text-foreground-dark [&_a]:text-accent [&_a]:hover:underline dark:[&_a]:text-white dark:[&_a]:hover:text-accent-dark [&_li::marker]:text-inherit"
       data-summary={@opts[:summary]}
       data-original={@opts[:original]}
       style={@opts[:style]}

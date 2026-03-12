@@ -10,7 +10,8 @@ import Config
 config :turbo_falcon,
   ecto_repos: [TurboFalcon.Repo],
   generators: [timestamp_type: :utc_datetime],
-  product_name: "Hacker News Job Board"
+  product_name: "Hacker News Job Board",
+  job_posting_summary_client: TurboFalcon.Groq.WebApiClient
 
 # Configures the endpoint
 config :turbo_falcon, TurboFalconWeb.Endpoint,

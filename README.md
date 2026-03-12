@@ -1,16 +1,106 @@
-# Hacker News Who's Hiring Aggregator
+# Turbo Falcon
 
-This app is broken up into a few domains:
+Turbo Falcon is a Phoenix + LiveView app that aggregates Hacker News “Who is hiring?” posts, stores them in SQLite, and summarizes postings for faster browsing.
 
-- Every 30 minutes on the hour a job runs powered by [Quantum](https://github.com/quantum-elixir/quantum-core). This job then goes and fetches recent who's hiring threads and checks for any new postings. These postings are stored in a SQLite database
-- GenStage is also used for summarizing the job postings. The producer just checks for any recent postings that have not yet been summarized and sends those to the consumer. If consumer gets rate limited by Gemini then it'll sleep for 60 seconds. The Gemini model used is `gemini-2.0-flash`
-- Phoenix/LiveView is used for displaying the job postings and providing soft real time interactions with the user
+## How it works
 
-You'll need a Gemini API key set in the env var `GEMINI_API_KEY`.
+- **Thread ingestion (Quantum scheduler):** Runs every 30 minutes, fetches recent HN submissions for `whoishiring`, detects “Ask HN: Who is hiring?” threads, and upserts new/changed postings.
+- **Summarization (GenStage pipeline):** Producer emits unsummarized posts and consumer summarizes them with a configured LLM client. On `429` responses, the consumer pauses for 60 seconds and resumes automatically.
+- **UI (Phoenix LiveView):** Displays job threads and postings with near real-time updates via PubSub.
 
-To start:
+## Requirements
 
-  * Run `mix setup` to install and setup dependencies
-  * Start Phoenix endpoint with `mix phx.server` or inside IEx with `iex -S mix phx.server`
+- Elixir `~> 1.14`
+- Erlang/OTP compatible with your Elixir version
+- `mix` / `hex`
 
-Now you can visit [`localhost:4000`](http://localhost:4000) from your browser.
+If you use `mise`, this project includes `mise.toml` with:
+
+- `elixir = "latest"`
+- `erlang = "latest"`
+
+## Environment variables
+
+### Local development
+
+The app loads `config/.env.exs` in `dev` and `test` environments (and this file is gitignored).
+
+At minimum, set:
+
+- `GROQ_API_KEY` (default summarization client)
+
+Optional (only needed if you switch to Gemini client):
+
+- `GEMINI_API_KEY`
+
+Example `config/.env.exs`:
+
+```elixir
+System.put_env("GROQ_API_KEY", "your_groq_api_key_here")
+# Optional, only if using Gemini:
+# System.put_env("GEMINI_API_KEY", "your_gemini_api_key_here")
+```
+
+## Setup and run
+
+1. Install dependencies and set up DB/assets:
+
+   ```bash
+   mix setup
+   ```
+
+2. Start the server:
+
+   ```bash
+   mix phx.server
+   ```
+
+   Or in IEx:
+
+   ```bash
+   iex -S mix phx.server
+   ```
+
+3. Open <http://localhost:4000>
+
+## Useful commands
+
+- Run tests:
+
+  ```bash
+  mix test
+  ```
+
+- Reset DB:
+
+  ```bash
+  mix ecto.reset
+  ```
+
+- Build assets:
+
+  ```bash
+  mix assets.build
+  ```
+
+- Build minified assets + digest:
+
+  ```bash
+  mix assets.deploy
+  ```
+
+## Switching summarization provider
+
+Default provider is configured in `config/config.exs`:
+
+- `job_posting_summary_client: TurboFalcon.Groq.WebApiClient`
+
+To use Gemini instead, change it to:
+
+- `job_posting_summary_client: TurboFalcon.Gemini.WebApiClient`
+
+Then set `GEMINI_API_KEY`.
+
+## Deployment note
+
+There is a VM deployment helper script at `deployment/deploy_vm.sh` that packages, uploads, migrates, builds a release, and restarts the app.

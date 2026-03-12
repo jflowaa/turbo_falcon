@@ -20,8 +20,9 @@ defmodule TurboFalcon.Application do
       # {TurboFalcon.Worker, arg},
       TurboFalcon.HackerNews.Scheduler,
       TurboFalcon.HackerNews.JobServer,
-      TurboFalcon.Gemini.JobPostingSummarizingProducer,
-      {TurboFalcon.Gemini.JobPostingSummarizingConsumer, [id: :consumer_1]},
+      TurboFalcon.JobPostingSummarizing.Producer,
+      {TurboFalcon.JobPostingSummarizing.Consumer,
+       [id: :consumer_1, client_module: job_posting_summary_client()]},
       # Start to serve requests, typically the last entry
       TurboFalconWeb.Endpoint
     ]
@@ -43,5 +44,9 @@ defmodule TurboFalcon.Application do
   defp skip_migrations?() do
     # By default, sqlite migrations are run when using a release
     System.get_env("RELEASE_NAME") != nil
+  end
+
+  defp job_posting_summary_client do
+    Application.fetch_env!(:turbo_falcon, :job_posting_summary_client)
   end
 end

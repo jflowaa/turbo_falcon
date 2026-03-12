@@ -1,17 +1,19 @@
-defmodule TurboFalcon.Gemini.JobPostingSummarizingConsumer do
+defmodule TurboFalcon.JobPostingSummarizing.Consumer do
   use GenStage
   alias TurboFalcon.HackerNews.JobPosting
-  alias TurboFalcon.Gemini.WebApiClient
   require Logger
 
-  def start_link(_) do
-    GenStage.start_link(__MODULE__, :ok, name: __MODULE__)
+  def start_link(opts) do
+    GenStage.start_link(__MODULE__, opts, name: __MODULE__)
   end
 
   @impl true
-  def init(:ok) do
-    {:consumer, %{gemini_client: WebApiClient.new(), paused: false, subscription: nil},
-     subscribe_to: [TurboFalcon.Gemini.JobPostingSummarizingProducer]}
+  def init(opts) do
+    client_module = Keyword.fetch!(opts, :client_module)
+
+    {:consumer,
+     %{api_client_module: client_module, api_client: client_module.new(), paused: false, subscription: nil},
+     subscribe_to: [TurboFalcon.JobPostingSummarizing.Producer]}
   end
 
   @impl true
@@ -34,15 +36,15 @@ defmodule TurboFalcon.Gemini.JobPostingSummarizingConsumer do
     Logger.info("Processing #{length(job_postings)} job postings for summarization...")
 
     Enum.each(job_postings, fn job_posting ->
-      summarize_job_posting(state.gemini_client, job_posting)
+      summarize_job_posting(state.api_client_module, state.api_client, job_posting)
     end)
 
     if state.subscription, do: GenStage.ask(state.subscription, 1)
     {:noreply, [], state}
   end
 
-  defp summarize_job_posting(client, job_posting) do
-    case WebApiClient.get_summary_of_job_posting(client, job_posting.text) do
+  defp summarize_job_posting(client_module, client, job_posting) do
+    case client_module.get_summary_of_job_posting(client, job_posting.text) do
       {:ok, response} when response.status == 200 ->
         Logger.info("Summarized job posting #{job_posting.item_id}")
         update_job_posting(job_posting, get_summary_from_response(response))
@@ -102,14 +104,28 @@ defmodule TurboFalcon.Gemini.JobPostingSummarizingConsumer do
   end
 
   defp get_summary_from_response(response) do
-    response.body
-    |> Map.get("candidates", [])
-    |> List.first(%{})
-    |> Map.get("content", %{})
-    |> Map.get("parts", [])
-    |> List.first(%{})
-    |> Map.get("text", "")
-    |> clean_markdown_code_block()
+    cond do
+      Map.has_key?(response.body, "candidates") ->
+        response.body
+        |> Map.get("candidates", [])
+        |> List.first(%{})
+        |> Map.get("content", %{})
+        |> Map.get("parts", [])
+        |> List.first(%{})
+        |> Map.get("text", "")
+        |> clean_markdown_code_block()
+
+      Map.has_key?(response.body, "choices") ->
+        response.body
+        |> Map.get("choices", [])
+        |> List.first(%{})
+        |> Map.get("message", %{})
+        |> Map.get("content", "")
+        |> clean_markdown_code_block()
+
+      true ->
+        nil
+    end
   end
 
   defp clean_markdown_code_block(text) when is_binary(text) do
