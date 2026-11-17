@@ -32,18 +32,17 @@ defmodule TurboFalcon.MixProject do
   # Type `mix help deps` for examples and options.
   defp deps do
     [
-      {:phoenix, "~> 1.7.21"},
-      {:phoenix_ecto, "~> 4.5"},
-      {:ecto_sql, "~> 3.10"},
-      {:ecto_sqlite3, ">= 0.0.0"},
-      {:ex_sqlean, "~> 0.8.7"},
-      {:phoenix_html, "~> 4.1"},
-      {:phoenix_live_reload, "~> 1.2", only: :dev},
-      {:phoenix_live_view, "~> 1.0"},
-      {:floki, ">= 0.30.0", only: :test},
-      {:phoenix_live_dashboard, "~> 0.8.3"},
-      {:esbuild, "~> 0.8", runtime: Mix.env() == :dev},
-      {:tailwind, "~> 0.2.0", runtime: Mix.env() == :dev},
+      {:phoenix, "~> 1.8"},
+      {:phoenix_ecto, "~> 4.7"},
+      {:ecto_sql, "~> 3.14"},
+      {:postgrex, "~> 0.22"},
+      {:phoenix_html, "~> 4.3"},
+      {:phoenix_live_reload, "~> 1.7", only: :dev},
+      {:phoenix_live_view, "~> 1.2"},
+      {:lazy_html, "~> 0.1", only: :test},
+      {:phoenix_live_dashboard, "~> 0.9"},
+      {:esbuild, "~> 0.10", runtime: Mix.env() == :dev},
+      {:tailwind, "~> 0.5", runtime: Mix.env() == :dev},
       {:heroicons,
        github: "tailwindlabs/heroicons",
        tag: "v2.1.1",
@@ -51,16 +50,16 @@ defmodule TurboFalcon.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:swoosh, "~> 1.5"},
-      {:finch, "~> 0.13"},
-      {:telemetry_metrics, "~> 1.0"},
-      {:telemetry_poller, "~> 1.0"},
-      {:gettext, "~> 0.26"},
-      {:jason, "~> 1.2"},
-      {:dns_cluster, "~> 0.1.1"},
-      {:bandit, "~> 1.5"},
-      {:req, "~> 0.5.0"},
-      {:quantum, "~> 3.0"}
+      {:finch, "~> 0.24"},
+      {:telemetry_metrics, "~> 1.2"},
+      {:telemetry_poller, "~> 1.3"},
+      {:gettext, "~> 1.0"},
+      {:jason, "~> 1.4"},
+      {:html_sanitize_ex, "~> 1.5"},
+      {:bandit, "~> 1.14"},
+      {:req, "~> 0.7"},
+      {:gen_stage, "~> 1.3"},
+      {:quantum, "~> 3.5"}
     ]
   end
 
@@ -72,10 +71,9 @@ defmodule TurboFalcon.MixProject do
   # See the documentation for `Mix` for more info on aliases.
   defp aliases do
     [
-      setup: ["deps.get", "ecto.setup", "assets.setup", "assets.build"],
-      "ecto.setup": ["ecto.create", "ecto.migrate", "run priv/repo/seeds.exs"],
-      "ecto.reset": ["ecto.drop", "ecto.setup"],
-      test: ["ecto.create --quiet", "ecto.migrate --quiet", "test"],
+      setup: ["deps.get", "db.migrate", "assets.setup", "assets.build"],
+      "db.migrate": [&db_migrate/1],
+      test: ["db.migrate", "test"],
       "assets.setup": ["tailwind.install --if-missing", "esbuild.install --if-missing"],
       "assets.build": ["tailwind turbo_falcon", "esbuild turbo_falcon"],
       "assets.deploy": [
@@ -84,5 +82,30 @@ defmodule TurboFalcon.MixProject do
         "phx.digest"
       ]
     ]
+  end
+
+  defp db_migrate(_args) do
+    run_dbmate(["--migration-lock", "migrate"])
+  end
+
+  defp run_dbmate(args) do
+    Mix.Task.run("app.config")
+
+    url =
+      :turbo_falcon
+      |> Application.fetch_env!(TurboFalcon.Repo)
+      |> Keyword.fetch!(:url)
+
+    case System.cmd("dbmate", args,
+           env: [{"DATABASE_URL", url}],
+           stderr_to_stdout: true
+         ) do
+      {output, 0} ->
+        IO.write(output)
+        :ok
+
+      {output, code} ->
+        Mix.raise("dbmate #{Enum.join(args, " ")} failed with exit code #{code}:\n#{output}")
+    end
   end
 end

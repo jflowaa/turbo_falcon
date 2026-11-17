@@ -1,23 +1,11 @@
 defmodule TurboFalcon.HackerNews.WebApiClient do
   @base_url "https://hacker-news.firebaseio.com/v0/"
 
-  def new(pool_size \\ 100) do
-    unless Process.whereis(__MODULE__) do
-      {:ok, _} =
-        Finch.start_link(
-          name: __MODULE__,
-          pools: %{
-            default: [
-              size: pool_size
-            ]
-          }
-        )
-    end
-
+  def new do
     Req.new(
       base_url: @base_url,
       receive_timeout: 30_000,
-      finch: __MODULE__
+      finch: TurboFalcon.HackerNews.Finch
     )
   end
 

@@ -14,6 +14,8 @@ defmodule TurboFalconWeb.Router do
     plug :accepts, ["json"]
   end
 
+  get "/healthz", TurboFalconWeb.HealthController, :show
+
   scope "/", TurboFalconWeb do
     pipe_through :browser
 
@@ -25,7 +27,7 @@ defmodule TurboFalconWeb.Router do
   #   pipe_through :api
   # end
 
-  # Enable LiveDashboard and Swoosh mailbox preview in development
+  # Enable LiveDashboard in development
   if Application.compile_env(:turbo_falcon, :dev_routes) do
     # If you want to use the LiveDashboard in production, you should put
     # it behind authentication and allow only admins to access it.
@@ -38,7 +40,6 @@ defmodule TurboFalconWeb.Router do
       pipe_through :browser
 
       live_dashboard "/dashboard", metrics: TurboFalconWeb.Telemetry
-      forward "/mailbox", Plug.Swoosh.MailboxPreview
     end
   end
 end

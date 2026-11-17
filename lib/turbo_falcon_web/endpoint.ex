@@ -22,7 +22,7 @@ defmodule TurboFalconWeb.Endpoint do
   plug Plug.Static,
     at: "/",
     from: :turbo_falcon,
-    gzip: false,
+    gzip: true,
     only: TurboFalconWeb.static_paths()
 
   # Code reloading can be explicitly enabled under the

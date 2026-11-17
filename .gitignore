@@ -40,3 +40,8 @@ npm-debug.log
 *.db-*
 
 config/.env.exs
+# Per-overlay Kustomize secret values
+
+# Compose deployment values
+deployment/.env
+deployment/env/*.env

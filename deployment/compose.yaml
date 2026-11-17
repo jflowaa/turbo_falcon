@@ -1,0 +1,36 @@
+name: turbo-falcon
+
+services:
+  turbo-falcon:
+    image: turbo_falcon:${IMAGE_TAG}
+    container_name: turbo-falcon
+    restart: unless-stopped
+    env_file: [./env/app.env]
+    environment:
+      PORT: "4002"
+      DNS_CLUSTER_QUERY: ""
+    networks: [edge, data]
+    mem_limit: 768m
+    security_opt: [no-new-privileges:true]
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "15m"
+
+  migrate:
+    image: turbo_falcon:${IMAGE_TAG}
+    profiles: ["tools"]
+    entrypoint: ["/usr/local/bin/dbmate"]
+    command: ["--wait", "--wait-timeout", "5m", "--migration-lock", "--no-dump-schema", "migrate"]
+    env_file: [./env/app.env]
+    networks: [data]
+    logging:
+      driver: k8s-file
+      options:
+        max-size: "15m"
+
+networks:
+  edge:
+    external: true
+  data:
+    external: true

@@ -100,16 +100,16 @@ defmodule TurboFalconWeb.Live.HackerNews.JobPostingCardComponent do
   end
 
   defp render_text_block(text, opts) do
-    assigns = %{text: text, opts: opts}
+    assigns = %{text: TurboFalcon.HtmlSanitizer.sanitize(text || ""), opts: opts}
 
     ~H"""
     <div
-      class="prose prose-sm prose-slate prose-headings:text-inherit prose-strong:text-inherit prose-blockquote:text-inherit prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 max-w-none text-foreground dark:text-foreground-dark [&_a]:text-accent [&_a]:hover:underline dark:[&_a]:text-white dark:[&_a]:hover:text-accent-dark [&_li::marker]:text-inherit"
+      class="prose prose-sm prose-slate prose-headings:text-inherit prose-strong:text-inherit prose-blockquote:text-inherit prose-p:my-1 prose-headings:my-2 prose-ul:my-1 prose-ol:my-1 prose-li:my-0.5 max-w-none text-foreground dark:text-foreground-dark [&_a]:text-accent [&_a]:hover:underline dark:[&_a]:text-accent-dark [&_li::marker]:text-inherit"
       data-summary={@opts[:summary]}
       data-original={@opts[:original]}
       style={@opts[:style]}
     >
-      {Phoenix.HTML.raw(@text || "")}
+      {Phoenix.HTML.raw(@text)}
     </div>
     """
   end

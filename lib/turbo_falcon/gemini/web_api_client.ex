@@ -39,23 +39,13 @@ defmodule TurboFalcon.Gemini.WebApiClient do
   contain headers like "Here is the summary of the job posting" or "The job posting is as follows".
   """
 
-  def new(pool_size \\ 100) do
-    unless Process.whereis(__MODULE__) do
-      {:ok, _} =
-        Finch.start_link(
-          name: __MODULE__,
-          pools: %{
-            default: [
-              size: pool_size
-            ]
-          }
-        )
-    end
-
+  def new do
     Req.new(
       base_url: @base_url,
       receive_timeout: 30_000,
-      finch: __MODULE__
+      # POSTs are excluded from Req's default `:safe_transient` retry policy.
+      retry: :transient,
+      finch: TurboFalcon.Gemini.Finch
     )
   end
 

@@ -1,3 +1,6 @@
 [tools]
-elixir = "latest"
-erlang = "latest"
+dbmate = "2.37.0"
+elixir = "1.20.4"
+erlang = "29.1.2"
+# dbmate shells out to pg_dump when it writes db/schema.sql.
+postgres = "18.6"

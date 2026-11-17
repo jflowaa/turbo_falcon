@@ -7,30 +7,36 @@ defmodule TurboFalcon.Application do
 
   @impl true
   def start(_type, _args) do
-    children = [
-      TurboFalconWeb.Telemetry,
-      TurboFalcon.Repo,
-      {Ecto.Migrator,
-       repos: Application.fetch_env!(:turbo_falcon, :ecto_repos), skip: skip_migrations?()},
-      {DNSCluster, query: Application.get_env(:turbo_falcon, :dns_cluster_query) || :ignore},
-      {Phoenix.PubSub, name: TurboFalcon.PubSub},
-      # Start the Finch HTTP client for sending emails
-      {Finch, name: TurboFalcon.Finch},
-      # Start a worker by calling: TurboFalcon.Worker.start_link(arg)
-      # {TurboFalcon.Worker, arg},
-      TurboFalcon.HackerNews.Scheduler,
-      TurboFalcon.HackerNews.JobServer,
-      TurboFalcon.JobPostingSummarizing.Producer,
-      {TurboFalcon.JobPostingSummarizing.Consumer,
-       [id: :consumer_1, client_module: job_posting_summary_client()]},
-      # Start to serve requests, typically the last entry
-      TurboFalconWeb.Endpoint
-    ]
+    children =
+      [
+        TurboFalconWeb.Telemetry,
+        TurboFalcon.Repo,
+        {Phoenix.PubSub, name: TurboFalcon.PubSub},
+        # HTTP pools for the outbound API clients. They are supervised so that
+        # a crash in whichever process happened to call `new/0` first cannot
+        # take the pool down, and so there is no start-up race between callers.
+        {Finch, name: TurboFalcon.HackerNews.Finch, pools: %{default: [size: 100]}},
+        {Finch, name: TurboFalcon.Groq.Finch, pools: %{default: [size: 10]}},
+        {Finch, name: TurboFalcon.Gemini.Finch, pools: %{default: [size: 10]}}
+      ] ++ pipeline_children() ++ [TurboFalconWeb.Endpoint]
 
     # See https://hexdocs.pm/elixir/Supervisor.html
     # for other strategies and supported options
     opts = [strategy: :one_for_one, name: TurboFalcon.Supervisor]
     Supervisor.start_link(children, opts)
+  end
+
+  defp pipeline_children do
+    if Application.get_env(:turbo_falcon, :start_pipeline, true) do
+      [
+        TurboFalcon.HackerNews.Scheduler,
+        TurboFalcon.JobPostingSummarizing.Producer,
+        {TurboFalcon.JobPostingSummarizing.Consumer,
+         [id: :consumer_1, client_module: job_posting_summary_client()]}
+      ]
+    else
+      []
+    end
   end
 
   # Tell Phoenix to update the endpoint configuration
@@ -39,11 +45,6 @@ defmodule TurboFalcon.Application do
   def config_change(changed, _new, removed) do
     TurboFalconWeb.Endpoint.config_change(changed, removed)
     :ok
-  end
-
-  defp skip_migrations?() do
-    # By default, sqlite migrations are run when using a release
-    System.get_env("RELEASE_NAME") != nil
   end
 
   defp job_posting_summary_client do

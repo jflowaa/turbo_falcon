@@ -47,13 +47,11 @@ defmodule TurboFalcon.JobPostingSummarizing.Producer do
   end
 
   defp fetch_job_postings(demand) do
-    thirty_days_ago =
-      DateTime.utc_now()
-      |> DateTime.add(-30 * 24 * 60 * 60, :second)
+    cutoff = TurboFalcon.JobPostingWindow.cutoff()
 
     JobPosting
     |> where([jp], not jp.summarized and not jp.deleted)
-    |> where([jp], jp.timestamp >= ^thirty_days_ago)
+    |> where([jp], jp.timestamp >= ^cutoff)
     |> order_by([jp], desc: jp.timestamp)
     |> limit(^demand)
     |> TurboFalcon.Repo.all()

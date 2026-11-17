@@ -1,65 +1,41 @@
 defmodule TurboFalconWeb.Live.HackerNews.Index do
   use TurboFalconWeb, :live_view
-  alias TurboFalcon.HackerNews.JobServer
+
+  alias TurboFalcon.HackerNews.JobPostings
   import TurboFalconWeb.Live.HackerNews.JobPostingCardComponent
   import TurboFalconWeb.Live.HackerNews.JobThreadFormComponent
 
   @impl true
   def mount(_params, _session, socket) do
-    if connected?(socket) do
-      {:ok,
-       load_job_threads(socket)
-       |> assign(:filter, "")
-       |> assign(:exclusive, false)}
-    else
-      {:ok,
-       socket |> assign(:job_threads, []) |> assign(:filter, "") |> assign(:exclusive, false)}
-    end
+    socket = socket |> assign(:filter, "") |> assign(:exclusive, false)
+
+    socket =
+      if connected?(socket) do
+        load_job_threads(socket)
+      else
+        socket |> assign(:job_threads, []) |> assign(:job_postings_empty, true)
+      end
+
+    {:ok, socket}
   end
 
   @impl true
-  def handle_params(_params, _uri, socket) do
-    {:noreply, load_job_threads(socket)}
-  end
-
-  @impl true
-  def handle_event("toggle_summary", %{"id" => id}, socket) do
-    postings =
-      Enum.map(
-        socket.assigns.streams.job_postings,
-        fn {dom_id, posting} ->
-          if posting.id == String.to_integer(id) do
-            {dom_id, %{posting | summarized: !posting.summarized}}
-          else
-            {dom_id, posting}
-          end
-        end
-      )
-
-    {:noreply, assign(socket, streams: %{job_postings: postings})}
-  end
+  def handle_params(_params, _uri, socket), do: {:noreply, load_job_threads(socket)}
 
   @impl true
   def handle_event("select_job_thread", %{"job_thread_item_id" => item_id}, socket) do
-    if socket.assigns[:selected_thread_id] do
-      Phoenix.PubSub.unsubscribe(
-        TurboFalcon.PubSub,
-        "job_postings:#{socket.assigns.selected_thread_id}"
-      )
+    with {:ok, thread_id} <- parse_id(item_id) do
+      postings = JobPostings.postings(thread_id)
+
+      {:noreply,
+       socket
+       |> assign(:selected_thread_id, thread_id)
+       |> assign(:job_postings_empty, postings == [])
+       |> stream(:job_postings, postings, reset: true)
+       |> subscribe_to_thread(thread_id)}
+    else
+      :error -> {:noreply, socket}
     end
-
-    Phoenix.PubSub.subscribe(TurboFalcon.PubSub, "job_postings:#{item_id}")
-
-    {:ok, job_postings} =
-      JobServer.get_job_postings(String.to_integer(item_id))
-
-    socket =
-      socket
-      |> assign(:selected_thread_id, String.to_integer(item_id))
-      |> assign(:job_postings_empty, job_postings == [])
-      |> stream(:job_postings, job_postings, reset: true)
-
-    {:noreply, socket}
   end
 
   @impl true
@@ -68,54 +44,44 @@ defmodule TurboFalconWeb.Live.HackerNews.Index do
         %{"filter" => filter, "job_thread_item_id" => item_id} = params,
         socket
       ) do
-    filters =
-      filter
-      |> String.split(~r/\s+/, trim: true)
-      |> Enum.reject(&(&1 == ""))
+    with {:ok, thread_id} <- parse_id(item_id) do
+      filters = filter |> String.split(~r/\s+/, trim: true) |> Enum.reject(&(&1 == ""))
+      exclusive? = Map.has_key?(params, "exclusive")
+      postings = JobPostings.postings(thread_id, filters, exclusive?)
 
-    is_exclusive = Map.has_key?(params, "exclusive")
-
-    case JobServer.get_job_postings(
-           String.to_integer(item_id),
-           filters,
-           Map.has_key?(params, "exclusive")
-         ) do
-      {:ok, job_postings} ->
-        socket =
-          socket
-          |> assign(:filter, filter)
-          |> assign(:exclusive, is_exclusive)
-          |> assign(:selected_thread_id, String.to_integer(item_id))
-          |> assign(:job_postings_empty, job_postings == [])
-          |> stream(:job_postings, job_postings, reset: true)
-
-        {:noreply, socket}
-
-      {:error, _reason} ->
-        IO.puts("empty job postings")
-
-        {:noreply,
-         socket |> assign(:job_postings_empty, true) |> stream(:job_postings, [], reset: true)}
+      {:noreply,
+       socket
+       |> assign(:filter, filter)
+       |> assign(:exclusive, exclusive?)
+       |> assign(:selected_thread_id, thread_id)
+       |> assign(:job_postings_empty, postings == [])
+       |> stream(:job_postings, postings, reset: true)}
+    else
+      :error -> {:noreply, socket}
     end
   end
 
   @impl true
   def handle_event("clear_summary", %{"id" => id}, socket) do
-    {:ok, _} = JobServer.clear_summary(String.to_integer(id))
-    {:ok, job_posting} = JobServer.get_job_posting(String.to_integer(id))
+    with {:ok, posting_id} <- parse_id(id),
+         %{} = posting <- JobPostings.get_posting(posting_id) do
+      JobPostings.clear_summary(posting_id)
 
-    Phoenix.PubSub.broadcast(
-      TurboFalcon.PubSub,
-      "job_postings:#{socket.assigns.selected_thread_id}",
-      {:job_posting_updated, job_posting}
-    )
+      posting = %{posting | summarized: false, summarized_text: nil, summarized_at: nil}
+
+      Phoenix.PubSub.broadcast(
+        TurboFalcon.PubSub,
+        topic(posting.thread_id),
+        {:job_posting_updated, posting}
+      )
+    end
 
     {:noreply, socket}
   end
 
   @impl true
   def handle_info({:job_posting_updated, posting}, socket) do
-    if posting.thread_id == socket.assigns.selected_thread_id do
+    if posting.thread_id == socket.assigns[:selected_thread_id] do
       {:noreply, stream_insert(socket, :job_postings, posting)}
     else
       {:noreply, socket}
@@ -123,36 +89,47 @@ defmodule TurboFalconWeb.Live.HackerNews.Index do
   end
 
   defp load_job_threads(socket) do
-    case JobServer.get_job_threads() do
-      {:ok, [first_thread | _] = job_threads} ->
-        postings =
-          case JobServer.get_job_postings(first_thread.item_id) do
-            {:ok, job_postings} -> job_postings
-            _ -> []
-          end
-
-        Phoenix.PubSub.subscribe(TurboFalcon.PubSub, "job_postings:#{first_thread.item_id}")
+    case JobPostings.threads() do
+      [first_thread | _] = job_threads ->
+        postings = JobPostings.postings(first_thread.item_id)
 
         socket
         |> assign(:job_threads, job_threads)
         |> assign(:selected_thread_id, first_thread.item_id)
-        |> stream(:job_postings, postings, reset: true)
         |> assign(:job_postings_empty, postings == [])
+        |> stream(:job_postings, postings, reset: true)
+        |> subscribe_to_thread(first_thread.item_id)
 
-      {:ok, []} ->
+      [] ->
         socket
         |> assign(:job_threads, [])
         |> assign(:selected_thread_id, nil)
         |> assign(:job_postings_empty, true)
         |> stream(:job_postings, [], reset: true)
+    end
+  end
 
-      {:error, reason} ->
-        socket
-        |> assign(:error, reason)
-        |> assign(:job_threads, [])
-        |> assign(:selected_thread_id, nil)
-        |> assign(:job_postings_empty, true)
-        |> stream(:job_postings, [], reset: true)
+  # Subscribing is idempotent per thread: `mount/3` and `handle_params/3` both
+  # load, and without the guard the LiveView would handle every update twice.
+  defp subscribe_to_thread(socket, thread_id) do
+    if connected?(socket) and socket.assigns[:subscribed_thread_id] != thread_id do
+      if previous = socket.assigns[:subscribed_thread_id] do
+        Phoenix.PubSub.unsubscribe(TurboFalcon.PubSub, topic(previous))
+      end
+
+      Phoenix.PubSub.subscribe(TurboFalcon.PubSub, topic(thread_id))
+      assign(socket, :subscribed_thread_id, thread_id)
+    else
+      socket
+    end
+  end
+
+  defp topic(thread_id), do: "job_postings:#{thread_id}"
+
+  defp parse_id(value) do
+    case Integer.parse(to_string(value)) do
+      {id, ""} -> {:ok, id}
+      _ -> :error
     end
   end
 end

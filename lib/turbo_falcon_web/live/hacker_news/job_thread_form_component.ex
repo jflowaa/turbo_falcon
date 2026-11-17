@@ -5,7 +5,7 @@ defmodule TurboFalconWeb.Live.HackerNews.JobThreadFormComponent do
   def job_thread_form(assigns) do
     ~H"""
     <div class="bg-card dark:bg-card-dark rounded-xl shadow p-6 flex flex-col gap-4 border border-border dark:border-border-dark">
-      <form phx-change="select_job_thread">
+      <form id="job_thread_form" phx-change="select_job_thread">
         <div class="flex flex-col md:flex-row md:items-center gap-2">
           <label
             for="job_thread_select"
@@ -31,7 +31,7 @@ defmodule TurboFalconWeb.Live.HackerNews.JobThreadFormComponent do
         </div>
       </form>
 
-      <form phx-submit="filter_job_postings" class="flex flex-col gap-4">
+      <form id="filter_form" phx-submit="filter_job_postings" class="flex flex-col gap-4">
         <input type="hidden" name="job_thread_item_id" value={@selected_thread_id} />
         <div class="flex flex-col md:flex-row md:items-center gap-2">
           <div class="flex flex-col flex-1">

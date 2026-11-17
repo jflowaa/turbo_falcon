@@ -21,15 +21,15 @@ if System.get_env("PHX_SERVER") do
 end
 
 if config_env() == :prod do
-  database_path =
-    System.get_env("TURBO_FALCON_DATABASE_PATH") ||
+  database_url =
+    System.get_env("DATABASE_URL") ||
       raise """
-      environment variable TURBO_FALCON_DATABASE_PATH is missing.
-      For example: /etc/turbo_falcon/turbo_falcon.db
+      environment variable DATABASE_URL is missing.
+      For example: postgresql://turbo_falcon:PASSWORD@postgres-rw.webapps:5432/turbo_falcon
       """
 
   config :turbo_falcon, TurboFalcon.Repo,
-    database: database_path,
+    url: database_url,
     pool_size: String.to_integer(System.get_env("POOL_SIZE") || "5")
 
   # The secret key base is used to sign/encrypt cookies and other secrets.
@@ -44,10 +44,14 @@ if config_env() == :prod do
       You can generate one by calling: mix phx.gen.secret
       """
 
-  host = System.get_env("PHX_HOST") || "turbo-falcon.jack-develops.com"
-  port = String.to_integer(System.get_env("PORT") || "4002")
+  host =
+    System.get_env("PHX_HOST") ||
+      raise """
+      environment variable PHX_HOST is missing.
+      For example: turbo-falcon.jack-develops.com
+      """
 
-  config :turbo_falcon, :dns_cluster_query, System.get_env("DNS_CLUSTER_QUERY")
+  port = String.to_integer(System.get_env("PORT") || "4002")
 
   config :turbo_falcon, TurboFalconWeb.Endpoint,
     url: [host: host, port: 443, scheme: "https"],
@@ -92,22 +96,4 @@ if config_env() == :prod do
   #       force_ssl: [hsts: true]
   #
   # Check `Plug.SSL` for all available options in `force_ssl`.
-
-  # ## Configuring the mailer
-  #
-  # In production you need to configure the mailer to use a different adapter.
-  # Also, you may need to configure the Swoosh API client of your choice if you
-  # are not using SMTP. Here is an example of the configuration:
-  #
-  #     config :turbo_falcon, TurboFalcon.Mailer,
-  #       adapter: Swoosh.Adapters.Mailgun,
-  #       api_key: System.get_env("MAILGUN_API_KEY"),
-  #       domain: System.get_env("MAILGUN_DOMAIN")
-  #
-  # For this example you need include a HTTP client required by Swoosh API client.
-  # Swoosh supports Hackney and Finch out of the box:
-  #
-  #     config :swoosh, :api_client, Swoosh.ApiClient.Hackney
-  #
-  # See https://hexdocs.pm/swoosh/Swoosh.html#module-installation for details.
 end

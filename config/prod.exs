@@ -8,12 +8,6 @@ import Config
 config :turbo_falcon, TurboFalconWeb.Endpoint,
   cache_static_manifest: "priv/static/cache_manifest.json"
 
-# Configures Swoosh API Client
-config :swoosh, api_client: Swoosh.ApiClient.Finch, finch_name: TurboFalcon.Finch
-
-# Disable Swoosh Local Memory Storage
-config :swoosh, local: false
-
 # Runtime production configuration, including reading
 # of environment variables, is done on config/runtime.exs.
 
@@ -21,14 +15,3 @@ config :logger,
   handle_otp_reports: true,
   handle_sasl_reports: true,
   level: :info
-
-config :logger, :default_handler,
-  config: [
-    file: ~c"logs.log",
-    filesync_repeat_interval: 5000,
-    file_check: 5000,
-    max_no_bytes: 10_000_000,
-    max_no_files: 5,
-    compress_on_rotate: true
-  ],
-  format: "$date $time $metadata[$level] $message"

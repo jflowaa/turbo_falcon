@@ -40,23 +40,13 @@ defmodule TurboFalcon.Groq.WebApiClient do
   contain fluff sentences like "Here is the summary of the job posting" or "The job posting is as follows".
   """
 
-  def new(pool_size \\ 100) do
-    unless Process.whereis(__MODULE__) do
-      {:ok, _} =
-        Finch.start_link(
-          name: __MODULE__,
-          pools: %{
-            default: [
-              size: pool_size
-            ]
-          }
-        )
-    end
-
+  def new do
     Req.new(
       base_url: @base_url,
       receive_timeout: 30_000,
-      finch: __MODULE__,
+      # POSTs are excluded from Req's default `:safe_transient` retry policy.
+      retry: :transient,
+      finch: TurboFalcon.Groq.Finch,
       headers: [
         {"Authorization", "Bearer #{System.get_env("GROQ_API_KEY")}"}
       ]
@@ -64,25 +54,25 @@ defmodule TurboFalcon.Groq.WebApiClient do
   end
 
   def get_summary_of_job_posting(client, posting, model \\ "openai/gpt-oss-20b") do
-      body = %{
-        "model" => model,
-        "messages" => [
-          %{
-            "role" => "system",
-            "content" =>  @system_prompt
-          },
-          %{
-            "role" => "developer",
-            "content" =>  posting
-          }
-        ]
-      }
+    body = %{
+      "model" => model,
+      "messages" => [
+        %{
+          "role" => "system",
+          "content" => @system_prompt
+        },
+        %{
+          "role" => "developer",
+          "content" => posting
+        }
+      ]
+    }
 
-      Req.post(
-        client,
-        url: "v1/chat/completions",
-        headers: [{"content-type", "application/json"}],
-        json: body
-      )
-    end
+    Req.post(
+      client,
+      url: "v1/chat/completions",
+      headers: [{"content-type", "application/json"}],
+      json: body
+    )
+  end
 end

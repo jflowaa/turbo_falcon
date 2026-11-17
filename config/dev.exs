@@ -1,8 +1,24 @@
 import Config
 
-# Configure your database
+# Configure your database.
+#
+# The platform runs PostgreSQL (CloudNativePG) in the cluster. The app has its
+# own `turbo_falcon` role and database (see deployment/k8s/base/database.yaml).
+# For local development, forward the cluster database and put the connection
+# string in config/.env.exs:
+#
+#     kubectl -n webapps port-forward svc/postgres-rw 55432:5432
+#     System.put_env(
+#       "DATABASE_URL",
+#       "postgresql://turbo_falcon:PASSWORD@localhost:55432/turbo_falcon"
+#     )
+#
+database_url =
+  System.get_env("DATABASE_URL") ||
+    "postgresql://localhost/turbo_falcon"
+
 config :turbo_falcon, TurboFalcon.Repo,
-  database: Path.expand("../turbo_falcon.db", __DIR__),
+  url: database_url,
   pool_size: 5,
   stacktrace: true,
   show_sensitive_data_on_connection_error: true
@@ -77,6 +93,3 @@ config :phoenix_live_view,
   debug_heex_annotations: true,
   # Enable helpful, but potentially expensive runtime checks
   enable_expensive_runtime_checks: true
-
-# Disable swoosh api client as it is only required for production adapters.
-config :swoosh, :api_client, false

@@ -17,15 +17,7 @@ defmodule TurboFalcon.HackerNews.JobPosting do
 
   @doc false
   def changeset(%JobPosting{} = job_post, attrs) do
-    attrs =
-      case attrs["timestamp"] || attrs[:timestamp] do
-        ts when is_integer(ts) ->
-          {:ok, dt} = DateTime.from_unix(ts)
-          Map.put(attrs, :timestamp, dt)
-
-        _ ->
-          attrs
-      end
+    attrs = normalize_timestamp(attrs)
 
     job_post
     |> cast(attrs, [
@@ -46,5 +38,24 @@ defmodule TurboFalcon.HackerNews.JobPosting do
       :text,
       :summarized
     ])
+  end
+
+  # HN sends Unix seconds; the column is a `:utc_datetime`. Both atom and
+  # string keys are accepted, but only the atom key survives so `cast/3` never
+  # sees a leftover string key. Out-of-range values are dropped rather than
+  # raising.
+  defp normalize_timestamp(attrs) do
+    case attrs[:timestamp] || attrs["timestamp"] do
+      ts when is_integer(ts) ->
+        attrs = Map.delete(attrs, "timestamp")
+
+        case DateTime.from_unix(ts) do
+          {:ok, datetime} -> Map.put(attrs, :timestamp, datetime)
+          {:error, _reason} -> Map.delete(attrs, :timestamp)
+        end
+
+      _ ->
+        attrs
+    end
   end
 end
