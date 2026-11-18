@@ -3,9 +3,8 @@ import Config
 # Configure your database.
 #
 # Tests use a separate database on the same PostgreSQL server as development.
-# The local overlay creates `turbo_falcon_test` as a CNPG Database owned by the
-# `turbo_falcon` role, so provision the local overlay once before running tests
-# (`./deployment/deploy_local.sh`).
+# The platform Postgres creates the `turbo_falcon` role; run
+# `./deployment/deploy_local.sh` once to create the test database.
 #
 # Set TEST_DATABASE_URL to override the derived URL. Tests use the Ecto SQL
 # sandbox, so each test rolls back and the schema is reused between runs.

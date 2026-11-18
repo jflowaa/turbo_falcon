@@ -40,7 +40,7 @@ npm-debug.log
 *.db-*
 
 config/.env.exs
-# Per-overlay Kustomize secret values
+.DS_Store
 
 # Compose deployment values
 deployment/.env

@@ -2,15 +2,14 @@ import Config
 
 # Configure your database.
 #
-# The platform runs PostgreSQL (CloudNativePG) in the cluster. The app has its
-# own `turbo_falcon` role and database (see deployment/k8s/base/database.yaml).
-# For local development, forward the cluster database and put the connection
-# string in config/.env.exs:
+# The platform runs PostgreSQL in the shared `data` network. The app has its
+# own `turbo_falcon` role and database (see platform/postgres/init.sql).
+# For local development, use the platform Postgres published on 127.0.0.1:5432
+# and put the connection string in config/.env.exs:
 #
-#     kubectl -n webapps port-forward svc/postgres-rw 55432:5432
 #     System.put_env(
 #       "DATABASE_URL",
-#       "postgresql://turbo_falcon:PASSWORD@localhost:55432/turbo_falcon"
+#       "postgresql://turbo_falcon:localdev@localhost:5432/turbo_falcon"
 #     )
 #
 database_url =

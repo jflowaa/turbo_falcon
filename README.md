@@ -14,8 +14,8 @@ Turbo Falcon is a Phoenix + LiveView app that aggregates Hacker News “Who is h
 - Erlang/OTP compatible with your Elixir version
 - `mix` / `hex`
 - `dbmate` (installed by `mise`)
-- A PostgreSQL database. Locally, use the platform CloudNativePG instance:
-  a local PostgreSQL 18 instance on `127.0.0.1:5432`
+- A PostgreSQL database. Locally, use the platform PostgreSQL 18 instance on
+  `127.0.0.1:5432` (`./scripts/setup.sh local`).
 
 If you use `mise`, this project includes `mise.toml` with:
 
