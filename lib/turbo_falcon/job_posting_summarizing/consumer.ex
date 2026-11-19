@@ -2,6 +2,7 @@ defmodule TurboFalcon.JobPostingSummarizing.Consumer do
   use GenStage
   alias TurboFalcon.HackerNews.JobPosting
   alias TurboFalcon.HtmlSanitizer
+  alias TurboFalcon.Observability.ErrorReporter
   require Logger
 
   # How many postings to pull from the producer at a time. They are summarized
@@ -71,8 +72,10 @@ defmodule TurboFalcon.JobPostingSummarizing.Consumer do
             update_job_posting(job_posting, summary)
 
           {:error, reason} ->
-            Logger.error(
-              "Failed to summarize job posting #{job_posting.item_id}: #{inspect(reason)}"
+            ErrorReporter.report_message(
+              "llm_response_error",
+              "Failed to summarize job posting #{job_posting.item_id}: #{inspect(reason)}",
+              operation: "summarize_job_posting"
             )
         end
 
@@ -87,14 +90,22 @@ defmodule TurboFalcon.JobPostingSummarizing.Consumer do
         :rate_limited
 
       {:ok, response} ->
-        Logger.error(
-          "Failed to summarize job posting #{job_posting.item_id}: unexpected status #{response.status}"
+        ErrorReporter.report_message(
+          "upstream_status",
+          "Failed to summarize job posting #{job_posting.item_id}: unexpected status #{response.status}",
+          operation: "summarize_job_posting",
+          status: response.status
         )
 
         :ok
 
       {:error, reason} ->
-        Logger.error("Failed to summarize job posting #{job_posting.item_id}: #{inspect(reason)}")
+        ErrorReporter.report_message(
+          "upstream_error",
+          "Failed to summarize job posting #{job_posting.item_id}: #{inspect(reason)}",
+          operation: "summarize_job_posting"
+        )
+
         :ok
     end
   end
@@ -131,8 +142,10 @@ defmodule TurboFalcon.JobPostingSummarizing.Consumer do
         :ok
 
       {:error, changeset} ->
-        Logger.error(
-          "Failed to update job posting #{job_posting.item_id}: #{inspect(changeset.errors)}"
+        ErrorReporter.report_message(
+          "database_error",
+          "Failed to update job posting #{job_posting.item_id}: #{inspect(changeset.errors)}",
+          operation: "summarize_job_posting"
         )
     end
   end

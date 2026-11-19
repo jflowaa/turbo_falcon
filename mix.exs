@@ -59,7 +59,13 @@ defmodule TurboFalcon.MixProject do
       {:bandit, "~> 1.14"},
       {:req, "~> 0.7"},
       {:gen_stage, "~> 1.3"},
-      {:quantum, "~> 3.5"}
+      {:quantum, "~> 3.5"},
+      {:opentelemetry_api, "~> 1.5"},
+      {:opentelemetry, "~> 1.7"},
+      {:opentelemetry_exporter, "~> 1.11"},
+      {:opentelemetry_phoenix, "~> 2.0"},
+      {:opentelemetry_bandit, "~> 0.3"},
+      {:opentelemetry_ecto, "~> 1.2"}
     ]
   end
 

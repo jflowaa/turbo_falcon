@@ -3,6 +3,7 @@ defmodule TurboFalcon.HackerNews.Scheduler do
 
   alias TurboFalcon.HackerNews.{JobPosting, JobThread, WebApiClient}
   alias TurboFalcon.HtmlSanitizer
+  alias TurboFalcon.Observability.ErrorReporter
   alias TurboFalcon.Repo
 
   require Logger
@@ -26,10 +27,19 @@ defmodule TurboFalcon.HackerNews.Scheduler do
         |> await_tasks()
 
       {:ok, %{status: status}} ->
-        Logger.error("Unexpected whoishiring response status: #{status}")
+        ErrorReporter.report_message(
+          "upstream_status",
+          "Unexpected whoishiring response status: #{status}",
+          operation: "hacker_news.whoishiring",
+          status: status
+        )
 
       {:error, reason} ->
-        Logger.error("Failed to fetch whoishiring submissions: #{inspect(reason)}")
+        ErrorReporter.report_message(
+          "upstream_error",
+          "Failed to fetch whoishiring submissions: #{inspect(reason)}",
+          operation: "hacker_news.whoishiring"
+        )
     end
 
     :ok
@@ -48,11 +58,21 @@ defmodule TurboFalcon.HackerNews.Scheduler do
         [body]
 
       {:ok, {:error, reason}} ->
-        Logger.error("Failed to fetch thread: #{inspect(reason)}")
+        ErrorReporter.report_message(
+          "upstream_error",
+          "Failed to fetch thread: #{inspect(reason)}",
+          operation: "hacker_news.fetch_thread"
+        )
+
         []
 
       {:exit, reason} ->
-        Logger.error("Thread fetch exited: #{inspect(reason)}")
+        ErrorReporter.report_message(
+          "thread_fetch_exited",
+          "Thread fetch exited: #{inspect(reason)}",
+          operation: "hacker_news.fetch_thread"
+        )
+
         []
     end)
   end
@@ -96,10 +116,20 @@ defmodule TurboFalcon.HackerNews.Scheduler do
     process_postings(kids, client_module, client)
   rescue
     exception ->
-      Logger.error("Failed to process thread #{item_id}: #{Exception.message(exception)}")
+      ErrorReporter.report(exception,
+        error_code: "thread_processing_failed",
+        operation: "hacker_news.process_thread",
+        route: "scheduler",
+        stacktrace: __STACKTRACE__
+      )
   catch
     kind, reason ->
-      Logger.error("Failed to process thread #{item_id}: #{inspect({kind, reason})}")
+      ErrorReporter.report_message(
+        "thread_processing_failed",
+        "Failed to process thread #{item_id}: #{inspect({kind, reason})}",
+        operation: "hacker_news.process_thread",
+        route: "scheduler"
+      )
   end
 
   defp upsert_job_thread(item_body) do
@@ -141,10 +171,19 @@ defmodule TurboFalcon.HackerNews.Scheduler do
           process_posting(body, item_id)
 
         {:ok, %{status: status}} ->
-          Logger.error("Unexpected status fetching item #{item_id}: #{status}")
+          ErrorReporter.report_message(
+            "upstream_status",
+            "Unexpected status fetching item #{item_id}: #{status}",
+            operation: "hacker_news.fetch_item",
+            status: status
+          )
 
         {:error, reason} ->
-          Logger.error("Failed to fetch item #{item_id}: #{inspect(reason)}")
+          ErrorReporter.report_message(
+            "upstream_error",
+            "Failed to fetch item #{item_id}: #{inspect(reason)}",
+            operation: "hacker_news.fetch_item"
+          )
       end
     end)
   end
@@ -242,7 +281,12 @@ defmodule TurboFalcon.HackerNews.Scheduler do
   defp handle_write({:ok, _record} = result, _context), do: result
 
   defp handle_write({:error, changeset}, context) do
-    Logger.error("Failed to #{context}: #{inspect(changeset.errors)}")
+    ErrorReporter.report_message(
+      "database_error",
+      "Failed to #{context}: #{inspect(changeset.errors)}",
+      operation: "hacker_news.persist"
+    )
+
     {:error, changeset}
   end
 
@@ -269,10 +313,19 @@ defmodule TurboFalcon.HackerNews.Scheduler do
         :ok
 
       {_task, {:exit, reason}} ->
-        Logger.error("Thread task exited: #{inspect(reason)}")
+        ErrorReporter.report_message(
+          "thread_task_exited",
+          "Thread task exited: #{inspect(reason)}",
+          operation: "hacker_news.process_thread"
+        )
 
       {task, nil} ->
-        Logger.error("Thread task timed out after #{@thread_timeout}ms")
+        ErrorReporter.report_message(
+          "thread_task_timeout",
+          "Thread task timed out after #{@thread_timeout}ms",
+          operation: "hacker_news.process_thread"
+        )
+
         Task.shutdown(task, :brutal_kill)
     end)
   end

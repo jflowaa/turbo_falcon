@@ -20,6 +20,62 @@ if System.get_env("PHX_SERVER") do
   config :turbo_falcon, TurboFalconWeb.Endpoint, server: true
 end
 
+# ## Observability
+#
+# Logs are JSON on stdout and are tailed by the platform collector. Traces go
+# over OTLP/gRPC to the shared collector on the platform `observability`
+# network. Both the local and production deployments use MIX_ENV=prod, so the
+# environment label is chosen explicitly rather than from MIX_ENV alone.
+deploy_environment =
+  System.get_env("DEPLOY_ENV") ||
+    if config_env() == :prod do
+      if String.ends_with?(System.get_env("PHX_HOST", ""), ".localhost"),
+        do: "local",
+        else: "production"
+    else
+      Atom.to_string(config_env())
+    end
+
+app_version =
+  case Application.spec(:turbo_falcon, :vsn) do
+    nil -> "unknown"
+    vsn -> List.to_string(vsn)
+  end
+
+deployed_version =
+  case System.get_env("IMAGE_TAG") do
+    value when value in [nil, ""] -> app_version
+    value -> value
+  end
+
+config :turbo_falcon, :observability,
+  service: "turbo_falcon",
+  environment: deploy_environment,
+  version: deployed_version
+
+otel_enabled =
+  case System.get_env("OTEL_ENABLED") do
+    nil -> config_env() == :prod
+    value -> value not in ["false", "0", "no"]
+  end
+
+config :opentelemetry,
+  log_level: :warning,
+  resource: [
+    service: %{
+      name: "turbo_falcon",
+      version: deployed_version
+    },
+    "deployment.environment": deploy_environment
+  ],
+  traces_exporter: if(otel_enabled, do: {:opentelemetry_exporter, %{}}, else: :none),
+  # The platform collector has no metrics pipeline; traces and logs only.
+  metrics_exporter: :none
+
+config :opentelemetry_exporter,
+  otlp_protocol: :grpc,
+  otlp_endpoint: System.get_env("OTEL_EXPORTER_OTLP_ENDPOINT", "http://otel-collector:4317")
+
 if config_env() == :prod do
   database_url =
     System.get_env("DATABASE_URL") ||

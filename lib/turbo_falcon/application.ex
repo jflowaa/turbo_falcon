@@ -7,6 +7,8 @@ defmodule TurboFalcon.Application do
 
   @impl true
   def start(_type, _args) do
+    TurboFalcon.Observability.setup()
+
     children =
       [
         TurboFalconWeb.Telemetry,

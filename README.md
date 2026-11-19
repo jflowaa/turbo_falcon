@@ -129,5 +129,11 @@ Then set `GEMINI_API_KEY`.
 ./deployment/deploy_ovh.sh
 ```
 
-The deployment runs the compose `migrate` one-shot before the app starts, so a
-failed migration does not start the app against an outdated schema.
+The deployment runs the compose `migrate` one-shot before the app starts.
+
+## Telemetry
+
+The compose service attaches to `observability` network.
+
+Local Grafana is at `http://grafana.localhost:8080` after
+`../scripts/setup.sh local`.

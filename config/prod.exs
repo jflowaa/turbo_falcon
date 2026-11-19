@@ -15,3 +15,10 @@ config :logger,
   handle_otp_reports: true,
   handle_sasl_reports: true,
   level: :info
+
+# The platform collector tails the container's stdout and expects one JSON
+# object per line. Logs are always JSON in a release (local and production).
+config :logger, :default_formatter,
+  format: {TurboFalcon.Observability.LogFormatter, :format},
+  metadata: :all,
+  utc_log: true

@@ -1,6 +1,7 @@
 defmodule TurboFalcon.JobPostingSummarizing.Producer do
   use GenStage
   alias TurboFalcon.HackerNews.JobPosting
+  alias TurboFalcon.Observability.ErrorReporter
   require Logger
   import Ecto.Query
 
@@ -40,7 +41,12 @@ defmodule TurboFalcon.JobPostingSummarizing.Producer do
         {:noreply, postings, state}
 
       {:error, reason} ->
-        Logger.error("Failed to fetch job postings: #{reason}")
+        ErrorReporter.report_message(
+          "database_error",
+          "Failed to fetch job postings: #{reason}",
+          operation: "summarize_job_posting"
+        )
+
         Process.send_after(self(), :check, 10_000)
         {:noreply, [], state}
     end

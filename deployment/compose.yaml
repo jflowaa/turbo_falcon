@@ -9,7 +9,8 @@ services:
     environment:
       PORT: "4002"
       DNS_CLUSTER_QUERY: ""
-    networks: [edge, data]
+      IMAGE_TAG: ${IMAGE_TAG}
+    networks: [edge, data, observability]
     mem_limit: 768m
     security_opt: [no-new-privileges:true]
     logging:
@@ -33,4 +34,6 @@ networks:
   edge:
     external: true
   data:
+    external: true
+  observability:
     external: true
